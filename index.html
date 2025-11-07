@@ -51,9 +51,9 @@
 
             /* 弹窗主体：尺寸与圆角、阴影统一由 CSS 控制（响应式） */
             .message-box {
-                position: absolute; /* 由 JS 动态设置 left/top */
-                width: var(--box-width);
-                height: var(--box-height);
+                position: absolute;
+                width: clamp(120px, 15vw, 200px); /* 响应式宽度 */
+                height: clamp(60px, 8vh, 100px);  /* 响应式高度 */
                 box-shadow: var(--box-shadow);
                 border-radius: var(--box-radius);
                 overflow: hidden;
@@ -62,8 +62,13 @@
                 flex-direction: column;
                 animation: popup 0.28s ease-out forwards;
                 transform-origin: center center;
-                /* 初始使用 translate(-50%,-50%) 以便动画与定位配合 */
                 transform: translate(-50%, -50%);
+                transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .message-box.heart-position {
+                width: clamp(80px, 10vw, 120px); /* 爱心位置时的响应式宽度 */
+                height: clamp(40px, 6vh, 60px);  /* 爱心位置时的响应式高度 */
             }
 
             .message-title{
@@ -85,6 +90,73 @@
                 align-items: center;
             }
 
+            /* 添加爱心动画效果 */
+            @keyframes heartbeat {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.2); }
+                100% { transform: scale(1); }
+            }
+
+            .heart-container {
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                display: none;
+            }
+
+            .heart {
+                position: relative;
+                width: 100px;
+                height: 100px;
+                animation: heartbeat 1s infinite;
+            }
+
+            .heart::before,
+            .heart::after {
+                content: '';
+                position: absolute;
+                width: 50px;
+                height: 80px;
+                border-radius: 50px 50px 0 0;
+                background-color: red;
+            }
+
+            .heart::before {
+                left: 50px;
+                transform: rotate(-45deg);
+                transform-origin: 0 100%;
+            }
+
+            .heart::after {
+                left: 0;
+                transform: rotate(45deg);
+                transform-origin: 100% 100%;
+            }
+
+            .heart-message-container {
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                width: 400px;
+                height: 400px;
+                display: none;
+            }
+
+            .heart-message {
+                position: absolute;
+                transform: scale(0.4);
+                opacity: 0;
+                transition: all 0.3s ease-out;
+                width: 120px;
+                height: 80px;
+            }
+
+            .heart-message.show {
+                opacity: 1;
+            }
+
             /* 小屏优化：更紧凑的内边距与字体 */
             @media (max-width: 420px) {
                 :root{
@@ -98,12 +170,59 @@
         </style>
     </head>
     <body>
-        <div id="main" class="mainClassName"></div>
+        <div id="main" class="mainClassName">
+            <div class="heart-container">
+                <div class="heart"></div>
+            </div>
+            <div class="heart-message-container"></div>
+        </div>
     </body>
     <script>
         // 信息框内容
-        var content = ["hhhh","ahahdoqwl","ashdfidfiq","eyrfkbjdkbjf"]
+        var originalContent = [
+            "多喝水哦~",
+            "要天天开心呀！",
+            "每天都要元气满满",
+            "记得按时休息~",
+            "加油！你是最棒的！",
+            "记得吃水果！",
+            "保持好心情！",
+            "早点休息",
+            "注意降温呐！",
+            "记得锻炼身体！",
+            "记得加衣服！",
+            "保持微笑呀！",
+            "心想事成！",
+            "累了记得停下休息！",
+            "开心最重要！",
+            "别委屈自己！",
+            "不开心记得说出来！",
+            "梦想成真！",
+        ];
+
+        // 生成一个包含重复内容的打乱数组
+        function generateShuffledContent(length) {
+            let content = [];
+            while (content.length < length) {
+                content = content.concat(originalContent.slice());
+            }
+            content = content.slice(0, length);
+            
+            // Fisher-Yates 洗牌算法
+            for (let i = content.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [content[i], content[j]] = [content[j], content[i]];
+            }
+            return content;
+        }
+
+        // 生成一个长度为100的打乱数组
+        var content = generateShuffledContent(100);
         var main = document.getElementById("main")
+        // 预留的中心元素文本
+        var centerMessage = "立冬快乐！！"; // 这里可以填写想要显示的中心文本
+    // 根据最长文本测量后的宽度（像素），将在运行时计算
+    var maxTextWidthPx = null;
 
         // 系统区域与中心点（会在 resize 时更新）
         var systemRect = { width: main.clientWidth, height: main.clientHeight };
@@ -118,6 +237,8 @@
             systemRect.height = main.clientHeight;
             centerX = systemRect.width / 2;
             centerY = systemRect.height / 2;
+            // 重新测量最长文本宽度以应对字体缩放或窗口变化
+            measureLongestTextWidth();
         }
 
         // 监听窗口大小变化
@@ -129,10 +250,14 @@
         function createMessageBox(){
             // 先确保系统尺寸是最新的
             updateSystemRect();
+            // 首次测量最长文本宽度
+            measureLongestTextWidth();
             intervalId = setInterval(() => {
                 if (index >= content.length) {
                     clearInterval(intervalId);
-                    return 0;
+                    // 所有元素出现后，开始移动到中心
+                    setTimeout(() => moveToHeart(), 500);
+                    return;
                 }
 
                 // 每次创建前更新尺寸（以应对动态布局）
@@ -152,7 +277,7 @@
 
                 createMessage(content[index], x, y, index, backgroundColor);
                 index++;
-            },2000)
+            }, 100)
         }
 
         // 信息框主体：不再在 JS 中设置宽高，交给 CSS 管理
@@ -165,11 +290,19 @@
             div.style.left = `${centerX}px`;
             div.style.top = `${centerY}px`;
 
-            const titleEl = messageTitle(backgroundColor);
-            const contentEl = messageBox(text, backgroundColor);
-
-            div.appendChild(titleEl);
+            const contentEl = createMessageContent(text, backgroundColor);
+            // 禁止换行并按最长文本设定宽度（受视口上限限制）
+            contentEl.style.whiteSpace = 'nowrap';
+            const maxAllowed = Math.round(Math.min(window.innerWidth * 0.9, maxTextWidthPx || 9999));
+            div.style.width = maxAllowed + 'px';
             div.appendChild(contentEl);
+
+            // 给整个消息盒子添加与背景颜色匹配的边框与投影
+            const rgb = parseRgb(backgroundColor);
+            if (rgb) {
+                div.style.border = `1px solid rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.85)`;
+                div.style.boxShadow = `0 8px 20px rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.14)`;
+            }
 
             main.appendChild(div);
 
@@ -181,31 +314,238 @@
             return div;
         }
 
+        
+
+        // 随机颜色
+        // 随机浅色系背景（优先浅色）
+        function bgcolor() {
+            // 生成较高亮度的 RGB 值，确保为浅色系
+            const min = 180; // 最小通道值
+            const r = Math.floor(min + Math.random() * (255 - min));
+            const g = Math.floor(min + Math.random() * (255 - min));
+            const b = Math.floor(min + Math.random() * (255 - min));
+            return `rgb(${r},${g},${b})`;
+        }
+
+        // 计算爱心形状的点位置
+        function getHeartPoints(count) {
+            const points = [];
+            // 根据屏幕大小动态计算缩放比例
+            const minDimension = Math.min(systemRect.width, systemRect.height);
+            const scale = minDimension * 0.2; // 增加整体大小到20%
+            const spacing = 2.5; // 显著增加间距
+            const outwardFactor = 1.3; // 向外扩展因子
+            
+            for (let i = 0; i < count; i++) {
+                const t = (i / count) * 2 * Math.PI;
+                // 基础心形方程
+                let x = 16 * Math.pow(Math.sin(t), 3);
+                let y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                
+                // 应用间距和扩展因子
+                x = x * spacing * outwardFactor;
+                y = y * spacing * outwardFactor;
+                
+                // 计算实际坐标，确保不超出屏幕
+                const actualX = x * scale / 32 + centerX;
+                const actualY = -y * scale / 32 + centerY;
+                
+                points.push({
+                    x: actualX,
+                    y: actualY
+                });
+            }
+            return points;
+        }
+
+        // 创建爱心形状的消息
+        function createHeartMessages() {
+            const container = document.querySelector('.heart-message-container');
+            container.style.display = 'block';
+            const points = getHeartPoints(originalContent.length);
+            
+            originalContent.forEach((text, i) => {
+                setTimeout(() => {
+                    const messageBox = document.createElement('div');
+                    messageBox.className = 'message-box heart-message';
+                    const bg = bgcolor();
+                    const contentEl = createMessageContent(text, bg);
+                    // 禁止换行并按最长文本设定宽度
+                    contentEl.style.whiteSpace = 'nowrap';
+                    const maxAllowed = Math.round(Math.min(window.innerWidth * 0.9, maxTextWidthPx || 9999));
+                    messageBox.style.width = maxAllowed + 'px';
+                    messageBox.appendChild(contentEl);
+                    const rgb = parseRgb(bg);
+                    if (rgb) {
+                        messageBox.style.border = `1px solid rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.95)`;
+                        messageBox.style.boxShadow = `0 6px 14px rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.14)`;
+                    }
+                    messageBox.style.left = points[i].x + 'px';
+                    messageBox.style.top = points[i].y + 'px';
+                    container.appendChild(messageBox);
+                    
+                    // 短暂延迟后显示
+                    setTimeout(() => messageBox.classList.add('show'), 50);
+                }, i * 100);
+            });
+
+            // 移除原来的红心
+            setTimeout(() => {
+                document.querySelector('.heart-container').style.display = 'none';
+            }, originalContent.length * 100);
+        }
         // 信息标题框（颜色动态）
-        function messageTitle(backgroundColor) {
-            const div = document.createElement("div")
-            div.textContent = "嘻嘻"
-            div.className = "message-title";
-            // 仅覆盖动态颜色，样式交给 CSS 管理
-            div.style.backgroundColor = backgroundColor;
-            div.style.color = '#fff';
-            return div;
+        // messageTitle 已移除，所有内容改由 createMessageContent 处理
+
+        // 辅助：把 "rgb(r,g,b)" 字符串解析为 [r,g,b]
+        function parseRgb(rgbStr) {
+            if (!rgbStr) return null;
+            const m = rgbStr.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (m) return [parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10)];
+            return null;
+        }
+
+        // 辅助：把 rgb 数组亮度放大，返回 css rgb 字符串
+        function brightenRgb(rgb, factor) {
+            if (!rgb) return 'rgb(255,255,255)';
+            const r = Math.min(255, Math.round(rgb[0] * factor));
+            const g = Math.min(255, Math.round(rgb[1] * factor));
+            const b = Math.min(255, Math.round(rgb[2] * factor));
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // 测量 longest 文本的像素宽度并写入 maxTextWidthPx
+        function measureLongestTextWidth() {
+            try {
+                // 合并 originalContent 与 content（content 可能已生成）
+                const pool = (originalContent || []).concat(content || []);
+                if (!pool || pool.length === 0) return;
+
+                // 创建离屏元素用于精确测量
+                const span = document.createElement('span');
+                span.style.position = 'absolute';
+                span.style.visibility = 'hidden';
+                span.style.whiteSpace = 'nowrap';
+                // 与 .message-content 同样的字体与字号
+                span.style.fontFamily = getComputedStyle(document.body).fontFamily || 'Arial, sans-serif';
+                span.style.fontSize = getComputedStyle(document.querySelector('.message-content') || document.body).fontSize || '14px';
+                document.body.appendChild(span);
+
+                let maxW = 0;
+                for (let i = 0; i < pool.length; i++) {
+                    const txt = `晞晞：${pool[i]}`;
+                    span.textContent = txt;
+                    const w = span.offsetWidth;
+                    if (w > maxW) maxW = w;
+                }
+
+                // 加上内边距与边框的预留（左右各 24px），并确保为整数
+                maxTextWidthPx = Math.ceil(maxW + 24);
+                // 避免超过视口 90%
+                const cap = Math.round(window.innerWidth * 0.9);
+                if (maxTextWidthPx > cap) maxTextWidthPx = cap;
+
+                document.body.removeChild(span);
+            } catch (e) {
+                // 如果测量失败，退回到一个安全默认值
+                maxTextWidthPx = Math.round(Math.min(window.innerWidth * 0.8, 320));
+            }
         }
 
         // 信息内容框（颜色动态）
-        function messageBox(text, backgroundColor) {
+        function createMessageContent(text, backgroundColor) {
             const div = document.createElement("div")
-            div.textContent = text
+            // 在文本前面添加前缀
+            div.textContent = `晞晞：${text}`;
             div.className = "message-content"
-            // 内容文字使用同色（或可自行调整以保证可读性）
-            div.style.color = backgroundColor;
+
+            // 解析背景色并生成更鲜艳的文字颜色
+            const rgb = parseRgb(backgroundColor);
+            if (rgb) {
+                // 背景使用传入颜色
+                div.style.backgroundColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+
+                    // 文字使用白色以保证在浅色背景上可读
+                    div.style.color = '#000';
+
+                // 给内容块添加与背景相近的边框阴影
+                div.style.border = `1px solid rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.95)`;
+                div.style.boxShadow = `0 6px 14px rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.14)`;
+            } else {
+                // 如果没有传入标准 rgb 字符串，则使用随机颜色方案
+                div.style.backgroundColor = backgroundColor;
+                div.style.color = '#000';
+                div.style.boxShadow = '0 6px 14px rgba(0,0,0,0.12)';
+            }
+
+            // 内边距微调，保证文字能完整显示
+            div.style.padding = '8px 10px';
+            div.style.borderRadius = '6px';
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.justifyContent = 'center';
             return div;
         }
+        // 移动到爱心形状
+        function moveToHeart() {
+            const boxes = Array.from(document.querySelectorAll('.message-box'));
+            const points = getHeartPoints(boxes.length - 1);
+            
+            // 第一步：所有元素缩小并移动到中心点
+            boxes.forEach((box, i) => {
+                box.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+                box.classList.add('heart-position');
+                box.style.left = `${centerX}px`;
+                box.style.top = `${centerY}px`;
+            });
 
-        // 随机颜色
-        function bgcolor() {
-            return `rgb(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)})`
+            // 第二步：在中心点停留一会儿后开始散开
+            setTimeout(() => {
+                // 将元素分成左右两组
+                const leftCount = Math.floor((boxes.length - 1) / 2);
+                const rightCount = boxes.length - 1 - leftCount;
+                
+                // 获取左右两侧的点
+                const leftPoints = points.slice(0, leftCount);
+                const rightPoints = points.slice(-rightCount);
+
+                // 处理左侧元素
+                leftPoints.forEach((point, i) => {
+                    const box = boxes[i];
+                    setTimeout(() => {
+                        box.style.transition = 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                        box.style.left = `${point.x}px`;
+                        box.style.top = `${point.y}px`;
+                    }, i * 50);
+                });
+
+                // 处理右侧元素
+                rightPoints.forEach((point, i) => {
+                    const box = boxes[leftCount + i];
+                    setTimeout(() => {
+                        box.style.transition = 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                        box.style.left = `${point.x}px`;
+                        box.style.top = `${point.y}px`;
+                    }, i * 50);
+                });
+
+                // 最后处理中心元素
+                const lastBox = boxes[boxes.length - 1];
+                setTimeout(() => {
+                    lastBox.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+                    lastBox.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                    lastBox.style.zIndex = '1000';
+                    
+                    if (centerMessage) {
+                        const contentEl = lastBox.querySelector('.message-content');
+                        if (contentEl) {
+                            contentEl.textContent = centerMessage;
+                        }
+                    }
+                }, Math.max(leftCount, rightCount) * 50 + 200);
+            }, 1000);
         }
+        
 
         // 启动
         createMessageBox()
