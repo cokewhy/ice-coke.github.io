@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="utf-8">
+        <title>MessageBox</title>
+        <style>
+            html,body{
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                width: 100%;
+            }
+            .mainClassName {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                
+            }  
+            /* 添加弹出动画的关键帧 */
+            @keyframes popup {
+                0% {
+                    transform: scale(0) translate(-50%, -50%);
+                    opacity: 0;
+                }
+                50% {
+                    transform: scale(1.1) translate(-50%, -50%);
+                }
+                100% {
+                    transform: scale(1) translate(-50%, -50%);
+                    opacity: 1;
+                }
+            }
+            .message-box {
+                animation: popup 0.3s ease-out forwards;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="main" class="mainClassName"></div>
+    </body>
+    <script>
+        // 信息框内容
+        var content = ["hhhh","ahahdoqwl","ashdfidfiq","eyrfkbjdkbjf"]
+        // 信息框大小
+        var main = document.getElementById("main")
+        var systemRect = main.getBoundingClientRect()
+        // 坐标中心点
+        var centerX = systemRect.width / 2
+        var centerY = systemRect.height / 2
+        // 随机生成坐标位置
+        var points = []
+        var index = 0;
+        var intervalId;
+
+         // 监听窗口大小变化
+        window.addEventListener('resize', function() {
+            systemRect = main.getBoundingClientRect();
+            centerX = systemRect.width / 2;
+            centerY = systemRect.height / 2;
+        });
+        // 初始化信息框
+        function createMessageBox(){
+            intervalId = setInterval(() => {
+                if (index >= content.length) {
+                    clearInterval(intervalId);
+                    return 0;
+                }
+                console.log(index,content[index]);
+                const backgroundColor = bgcolor();
+                const x = (Math.random() - 0.5) * (systemRect.width - 200);
+                const y = (Math.random() - 0.5) * (systemRect.height - 200);
+                createMessage(content[index],x,y,index,backgroundColor)
+                
+                index++;
+            },2000)
+        }
+        // 信息框主体
+        function createMessage(text,x,y,index,backgroundColor) {
+            const div = document.createElement("div")
+            div.id = "messageBox" + index
+            div.className = "message-box"
+            // main.appendChild(div)
+            // const appendId = document.getElementById("messageBox" + index)
+            // appendId.appendChild(messageTitle())
+            // appendId.appendChild(messageBox(text,x,y))
+            div.style.cssText = `
+                position: absolute;
+                width: 120px;
+                height: 75px;
+                top: ${centerY}px;
+                left: ${centerX}px;
+                box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                border-radius: 5px;
+            `
+            const titleEl = messageTitle(backgroundColor);
+            const contentEl = messageBox(text,backgroundColor);
+
+            div.appendChild(titleEl);
+            div.appendChild(contentEl);
+
+            main.appendChild(div);
+
+            // 设置最终位置，让动画生效
+            setTimeout(() => {
+                div.style.top = `${centerY + y}px`;
+                div.style.left = `${centerX + x}px`;
+            }, 10);
+            return div
+        }
+        // 信息标题框
+        function messageTitle(backgroundColor) {
+            const div = document.createElement("div")
+            div.textContent = "嘻嘻"
+            div.className = "message-title";
+            div.style.cssText = `
+                background-color: ${backgroundColor};
+                color: white;
+                border-bottom: 1px solid #eee;
+                padding: 5px 10px;
+                border-top-left-radius: 5px;
+                border-top-right-radius: 5px;
+            `
+            return div
+        }
+        // 信息内容框
+        function messageBox(text,backgroundColor) {
+            const div = document.createElement("div")
+            div.textContent = text
+            div.className = "message-content"
+            div.style.cssText = `
+                background-color: #fff;
+                color: ${backgroundColor};
+                padding: 10px;
+                border-bottom-left-radius: 5px;
+                border-bottom-right-radius: 5px;
+            `
+            return div
+        }
+        // 随机颜色
+        function bgcolor() {
+            return `rgb(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)})`
+        }
+        createMessageBox()
+    </script>
+</html>
