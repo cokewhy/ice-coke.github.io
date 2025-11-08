@@ -3,7 +3,7 @@
 
     <head>
         <meta charset="utf-8">
-        <title>MessageBox</title>
+        <title>送晞姐</title>
         <style>
             /* 响应式基础重置 */
             html,body{
@@ -180,14 +180,14 @@
     <script>
         // 信息框内容
         var originalContent = [
-            "多喝水哦~",
+            "多喝水哦！",
             "要天天开心呀！",
             "每天都要元气满满",
-            "记得按时休息~",
+            "记得按时休息！",
             "加油！你是最棒的！",
             "记得吃水果！",
             "保持好心情！",
-            "早点休息",
+            "早点休息！",
             "注意降温呐！",
             "记得锻炼身体！",
             "记得加衣服！",
@@ -220,7 +220,7 @@
         var content = generateShuffledContent(100);
         var main = document.getElementById("main")
         // 预留的中心元素文本
-        var centerMessage = "立冬快乐！！"; // 这里可以填写想要显示的中心文本
+        var centerMessage = "天天开心！"; // 这里可以填写想要显示的中心文本
     // 根据最长文本测量后的宽度（像素），将在运行时计算
     var maxTextWidthPx = null;
 
@@ -433,7 +433,7 @@
 
                 let maxW = 0;
                 for (let i = 0; i < pool.length; i++) {
-                    const txt = `晞晞：${pool[i]}`;
+                    const txt = `${pool[i]}`;
                     span.textContent = txt;
                     const w = span.offsetWidth;
                     if (w > maxW) maxW = w;
@@ -456,7 +456,7 @@
         function createMessageContent(text, backgroundColor) {
             const div = document.createElement("div")
             // 在文本前面添加前缀
-            div.textContent = `晞晞：${text}`;
+            div.textContent = `${text}`;
             div.className = "message-content"
 
             // 解析背景色并生成更鲜艳的文字颜色
